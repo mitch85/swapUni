@@ -1,8 +1,9 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { confirmAction } from '@/components/confirm';
 import { DemoBanner } from '@/components/demo-banner';
 import { displayName } from '@/components/match-card';
 import { Avatar, Badge, Button, Card, ErrorText, Icon, Screen, TextField, ToggleRow, type IconName } from '@/components/ui';
@@ -22,16 +23,6 @@ const verificationInfo: Record<VerificationStatus, { label: string; tone: 'succe
   verified: { label: 'Verifiziert', tone: 'success', text: 'Dein Studienplatz ist bestätigt.' },
   rejected: { label: 'Abgelehnt', tone: 'danger', text: 'Dein Nachweis konnte nicht bestätigt werden. Bitte lade ein aktuelles Dokument hoch.' },
 };
-
-function confirmDestructive(title: string, message: string, action: string): Promise<boolean> {
-  if (Platform.OS === 'web') return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
-      { text: action, style: 'destructive', onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 export default function ProfileScreen() {
   const { profile, myRequest, refresh, refreshProfile } = useApp();
@@ -88,11 +79,12 @@ export default function ProfileScreen() {
     });
 
   const deleteAccount = async () => {
-    const ok = await confirmDestructive(
-      'Konto löschen?',
-      'Dein Profil, dein Tauschgesuch, deine Chats und hochgeladenen Nachweise werden endgültig gelöscht.',
-      'Endgültig löschen',
-    );
+    const ok = await confirmAction({
+      title: 'Konto löschen?',
+      message: 'Dein Profil, dein Tauschgesuch, deine Chats und hochgeladenen Nachweise werden endgültig gelöscht.',
+      confirmLabel: 'Endgültig löschen',
+      destructive: true,
+    });
     if (ok) await run('delete', () => backend.deleteAccount());
   };
 

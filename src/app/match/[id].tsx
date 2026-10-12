@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { confirmAction } from '@/components/confirm';
 import { CompatibilityBadge, displayName } from '@/components/match-card';
 import { programLabel } from '@/components/request-fields';
 import { Avatar, Badge, Button, Card, EmptyState, ErrorText, Icon, InfoRow, Screen, TextField } from '@/components/ui';
@@ -17,16 +18,6 @@ const statusIcon: Record<CheckStatus, { name: 'checkmark-circle' | 'alert-circle
   warn: { name: 'alert-circle', color: Colors.warning },
   fail: { name: 'close-circle', color: Colors.danger },
 };
-
-function confirm(title: string, message: string): Promise<boolean> {
-  if (Platform.OS === 'web') return Promise.resolve(window.confirm(`${title}\n\n${message}`));
-  return new Promise((resolve) =>
-    Alert.alert(title, message, [
-      { text: 'Abbrechen', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Bestätigen', onPress: () => resolve(true) },
-    ]),
-  );
-}
 
 export default function MatchScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -83,16 +74,18 @@ export default function MatchScreen() {
   }
 
   async function markSuccessful() {
-    const ok = await confirm(
-      'Tausch erfolgreich?',
-      `Dein Gesuch wird als erfolgreich vermittelt (Wechsel nach ${myNewUni?.name ?? myNewUniversityId}) markiert und aus dem Teilnehmerpool entfernt.`,
-    );
+    const ok = await confirmAction({
+      title: 'Tausch erfolgreich?',
+      message: `Dein Gesuch wird als erfolgreich vermittelt (Wechsel nach ${myNewUni?.name ?? myNewUniversityId}) markiert und aus dem Teilnehmerpool entfernt.`,
+      confirmLabel: 'Abschließen',
+    });
     if (!ok) return;
     setBusy(true);
     try {
       await backend.completeSwap(myNewUniversityId);
       await refresh();
-      router.replace('/');
+      setBusy(false);
+      router.dismissTo('/(tabs)');
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);

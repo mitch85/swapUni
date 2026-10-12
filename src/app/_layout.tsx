@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ConfirmHost } from '@/components/confirm';
 import { Splash } from '@/components/splash';
 import { Colors } from '@/constants/theme';
 import { AppProvider, useApp } from '@/lib/app-state';
@@ -55,6 +56,7 @@ function RootNavigator() {
           <Stack.Screen name="universities/[id]" />
         </Stack.Protected>
       </Stack>
+      <ConfirmHost />
     </>
   );
 }
