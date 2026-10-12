@@ -1,4 +1,4 @@
-import { semesterAtSwap, semesterLabel } from './terms';
+import { parseTerm, semesterAtSwap, semesterLabel, termsBetween } from './terms';
 import type { Offer, SwapRequest, University } from './types';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail';
@@ -21,9 +21,6 @@ export interface Match {
   /** Sum of the wish ranks involved (lower is better). */
   priority: number;
 }
-
-/** Semester from which the clinical part of studies begins (after the Physikum). */
-export const FIRST_CLINICAL_SEMESTER = 5;
 
 type UniMap = Map<string, University>;
 
@@ -94,29 +91,18 @@ export function evaluateSwap(cycle: SwapRequest[], unis: UniMap, now: Date): Com
     detail: sameTerm ? cycle[0].desiredTerm : undefined,
   });
 
-  // Fachsemester
+  // Fachsemester: practically all universities require the same Fachsemester.
   const semesters = cycle.map((r) => semesterAtSwap(r.semester, r.desiredTerm, now));
-  const min = Math.min(...semesters);
-  const maxSem = Math.max(...semesters);
-  const exactRequired =
-    maxSem >= FIRST_CLINICAL_SEMESTER || universities.some((u) => u.requiresExactSemester);
-  if (min === maxSem) {
-    checks.push({ label: 'Fachsemester kompatibel', status: 'ok', detail: semesterLabel(cycle[0].semester) });
-  } else if (!exactRequired && maxSem - min === 1 && min > 0) {
-    checks.push({
-      label: 'Fachsemester weichen um 1 ab',
-      status: 'warn',
-      detail: 'Anerkennung der Leistungen mit den Universitäten klären.',
-    });
-  } else {
-    checks.push({
-      label: 'Fachsemester nicht kompatibel',
-      status: 'fail',
-      detail: exactRequired
-        ? 'Ab der Klinik (bzw. an dieser Universität) müssen die Fachsemester genau übereinstimmen.'
-        : 'Die Fachsemester liegen zu weit auseinander.',
-    });
-  }
+  const sameSemester = semesters.every((sem) => sem === semesters[0]);
+  checks.push(
+    sameSemester
+      ? { label: 'Fachsemester identisch', status: 'ok', detail: semesterLabel(cycle[0].semester) }
+      : {
+          label: 'Fachsemester unterschiedlich',
+          status: 'fail',
+          detail: 'Die Universitäten verlangen beim Tausch das gleiche Fachsemester.',
+        },
+  );
 
   const samePlaceType = cycle.every((r) => r.placeType === cycle[0].placeType);
   checks.push({
@@ -124,6 +110,21 @@ export function evaluateSwap(cycle: SwapRequest[], unis: UniMap, now: Date): Com
     status: samePlaceType ? 'ok' : 'fail',
     detail: samePlaceType ? undefined : 'Ein Vollstudienplatz kann nur gegen einen Vollstudienplatz getauscht werden.',
   });
+
+  const provisional = cycle.filter((r) => r.provisionalEnrollment).length;
+  if (provisional > 0 && provisional < cycle.length) {
+    checks.push({
+      label: 'Vorläufige und endgültige Einschreibung',
+      status: 'fail',
+      detail: 'Vorläufige Studienplätze können nicht gegen endgültige getauscht werden.',
+    });
+  } else if (provisional > 0) {
+    checks.push({
+      label: 'Vorläufige Einschreibung',
+      status: 'warn',
+      detail: 'Viele Universitäten tauschen nur endgültig vergebene Plätze. Bitte vorab erfragen.',
+    });
+  }
 
   if (cycle.some((r) => r.semester === 0 && !r.admissionConfirmed)) {
     checks.push({
@@ -146,6 +147,16 @@ export function evaluateSwap(cycle: SwapRequest[], unis: UniMap, now: Date): Com
     const semIssue = semesterRuleCheck(next, semester);
     if (semIssue?.status === 'fail') ruleFailures.push(semIssue.detail!);
     else if (semIssue && !ruleWarnings.some((w) => w.label === semIssue.label)) ruleWarnings.push(semIssue);
+    const term = parseTerm(request.desiredTerm);
+    if (term && next.allowedTerms !== 'both' && term.kind !== next.allowedTerms) {
+      ruleFailures.push(
+        `${next.name}: Tausch nur zum ${next.allowedTerms === 'WiSe' ? 'Wintersemester' : 'Sommersemester'}.`,
+      );
+    }
+    const last = next.lastSwapTerm ? parseTerm(next.lastSwapTerm) : null;
+    if (term && last && termsBetween(last, term) > 0) {
+      ruleFailures.push(`${next.name}: Studienplatztausch nur noch bis ${next.lastSwapTerm}.`);
+    }
     if (request.lawsuitPlace && own.excludesLawsuitPlaces) {
       ruleFailures.push(`${own.name}: Über eine Klage erhaltene Studienplätze sind vom Tausch ausgeschlossen.`);
     }
@@ -202,9 +213,14 @@ export function evaluateSwap(cycle: SwapRequest[], unis: UniMap, now: Date): Com
       detail: `Der neue Studierende muss sich zusätzlich bewerben: ${online.map((u) => u.name).join(', ')}`,
     });
   }
-  universities
-    .filter((u) => u.id === 'hamburg')
-    .forEach((u) => checks.push({ label: u.notes[0] ?? u.name, status: 'warn' }));
+  const achievement = universities.filter((u) => u.achievementNote);
+  if (achievement.length) {
+    checks.push({
+      label: 'Leistungsstand wird geprüft',
+      status: 'warn',
+      detail: achievement.map((u) => `${u.name}: ${u.achievementNote}`).join('\n'),
+    });
+  }
 
   return checks;
 }

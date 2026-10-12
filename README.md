@@ -12,7 +12,7 @@ Gebaut mit **Expo (React Native, SDK 57) + Expo Router** und **Supabase** (Postg
 | Abfrage Studiengang, aktuelle Uni, Wunschunis (1–3, priorisiert), Fachsemester, Ringtausch | Onboarding in 5 Schritten (`src/app/onboarding.tsx`), später änderbar (`src/app/request.tsx`) |
 | Tausch auch vor Studienbeginn – nur mit bestätigtem Studienplatz | Fachsemester „Vor Studienbeginn“ + Bestätigung der Zulassung; Unis ohne Tausch vor Studienbeginn werden berücksichtigt |
 | Tauschpartner ermitteln | Direkte Tausche und Ringtausche zu dritt (`src/lib/matching.ts`) |
-| Voraussetzungen der Unis einbeziehen | Vorprüfung je Match: Semesterregeln, Klinik (ab 5. Semester exakt gleiches Semester), Modellstudiengang, Ringtausch-Erlaubnis, Klageplätze, Voll-/Teilstudienplatz, Dekanatsgenehmigung, Online-Bewerbung |
+| Voraussetzungen der Unis einbeziehen | Vorprüfung je Match: gleiches Fachsemester, Semesterregeln, Wechsel nur zum WiSe/SoSe, Tauschende einer Uni, vorläufige Einschreibung, Leistungsstand, Modellstudiengang, Ringtausch-Erlaubnis, Klageplätze, Voll-/Teilstudienplatz, Dekanatsgenehmigung, Online-Bewerbung |
 | Kontakte der Unis (Formulare, Studienbüro) | `src/app/universities/*` mit Fristen, Tauschformularen, Links, E-Mail und Telefon |
 | Erfolgreiche Vermittlungen kennzeichnen und aus dem Pool löschen | „Tausch erfolgreich“ im Match; das Gesuch verschwindet aus dem Pool, es bleibt nur eine anonyme Statistik |
 | Push bei neuem passendem Partner und bei Chat-Nachrichten | Edge Function `supabase/functions/notify` + Expo Push |
@@ -73,15 +73,25 @@ npm run build:web     # statische Web-App in dist/ (z. B. für Vercel/Netlify, S
 
 Bedeutung der Felder: `minSemester`/`maxSemester` gelten für das Semester zum Wechselzeitpunkt (0 = vor Studienbeginn, `null` = unbekannt, die App zeigt dann einen Hinweis). Weitere Felder sind `ringSwap` (`yes`/`no`/`unknown`), `ringSwapMax`, `modelProgram`, `swapWithModel`, `swapWithRegular`, `regularSwapMinSemester`, `requiresExactSemester`, `requiresDeanApproval`, `excludesLawsuitPlaces`, `partnerMustApplyOnline`, Fristen, `forms`, Kontaktdaten und `notes`.
 
-### Auffälligkeiten in der Tabelle, bitte prüfen
+### Korrekturen gegenüber der Tabelle (Recherche Oktober 2026)
+
+- **Tübingen:** Tausch ab dem 2. Fachsemester ([Uni Tübingen](https://uni-tuebingen.de/de/960)), kein Ringtausch.
+- **TU München:** ergänzt; gleiches Semester, Frist bis zum ersten Vorlesungstag, Ringtausch-Formular ([TUM](https://www.tum.de/studium/bewerbung/medizin/medizinplatztausch/)).
+- **TU Dresden:** Tausch nur zum Wintersemester, Leistungsstand mind. 80 % ([TU Dresden](https://tu-dresden.de/med/mf/studium/bedingungen-und-antragsverfahren-studienplatztausch-mf-tud)).
+- **Hamburg:** Tausch nur noch bis WiSe 2026/27 ([Uni Hamburg](https://www.uni-hamburg.de/campuscenter/bewerbung/fachwechsel-ortswechsel/studienplatztausch)).
+
+Neue Regelfelder: `allowedTerms` (`both`/`WiSe`/`SoSe`), `lastSwapTerm` (letztes Semester mit Tausch) und `achievementNote` (geforderter Leistungsstand). Das gleiche Fachsemester ist jetzt Pflicht. Vorläufige Plätze werden nicht mit endgültigen gematcht.
+
+### Noch offen, bitte prüfen
 
 - **Augsburg:** Das Formular verweist auf eine lokale Datei (`file:///D:/…`) und wurde deshalb nicht übernommen.
 - **Greifswald:** Der Link zeigt auf die Seite der Uni Göttingen und wurde deshalb nicht übernommen.
-- **Halle, Tübingen, Ulm:** Es gibt nur „nicht möglich“ in der Spalte Ringtausch. Übernommen als „kein Ringtausch“; der Direkttausch bleibt erlaubt, die Semesterregel ist unbekannt. Falls gar kein Tausch möglich ist: `swapPossible: false` setzen.
+- **Halle, Ulm:** Es gibt nur „nicht möglich“ in der Spalte Ringtausch. Ist jeder Tausch ausgeschlossen? Dann `swapPossible: false` setzen.
 - **Dortmund:** An der TU Dortmund gibt es keine Humanmedizin. Bitte prüfen, welche Uni gemeint ist.
-- **FU / HU Berlin:** Beide sind als Charité (Modellstudiengang) eingetragen, wie in der Tabelle.
-- **Modellstudiengänge:** Als Modellstudiengang markiert sind die Unis aus der MHH-Anmerkung (Charité, Aachen, Köln, Düsseldorf, Mannheim, Oldenburg, Augsburg, Bielefeld, Dresden) sowie die MHH selbst.
+- **Lausitz (Cottbus):** Der Start ist zum WiSe 2026/27 geplant. Die Uni kommt in die Liste, sobald ihre Tauschregeln bekannt sind.
 - Telefonnummern der Studienbüros fehlen in der Tabelle. Das Feld `contactPhone` ist vorbereitet.
+
+Meldungen über veraltete Angaben („Angabe falsch oder veraltet?“ auf jeder Uni-Seite) landen in der Tabelle `university_reports`.
 
 ## Datenschutz & Sicherheit
 
@@ -103,7 +113,7 @@ Bedeutung der Felder: `minSemester`/`maxSemester` gelten für das Semester zum W
 
 ## Verifizierung (Admin)
 
-Hochgeladene Nachweise liegen unter *Storage → verifications*. Nach der Prüfung in *Table Editor → profiles* den Wert `verification_status` auf `verified` oder `rejected` setzen. Meldungen über „Profil melden“ landen in der Tabelle `reports`.
+Hochgeladene Nachweise liegen unter *Storage → verifications*. Nach der Prüfung in *Table Editor → profiles* den Wert `verification_status` auf `verified` oder `rejected` setzen. Meldungen über „Profil melden“ landen in der Tabelle `reports`, z. B. bei Geldangeboten. Geld für einen Tausch ist unzulässig; die App weist bei der Registrierung und im Chat darauf hin.
 
 ## Werbung
 

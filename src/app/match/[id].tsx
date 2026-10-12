@@ -13,6 +13,8 @@ import { evaluateSwap, findMatchById, indexUniversities, type CheckStatus, type 
 import { semesterLabel } from '@/lib/terms';
 import type { Offer } from '@/lib/types';
 
+const REPORT_REASONS = ['Bietet oder verlangt Geld', 'Gefälschtes Profil', 'Beleidigung oder Belästigung', 'Spam'];
+
 const statusIcon: Record<CheckStatus, { name: 'checkmark-circle' | 'alert-circle' | 'close-circle'; color: string }> = {
   ok: { name: 'checkmark-circle', color: Colors.success },
   warn: { name: 'alert-circle', color: Colors.warning },
@@ -178,7 +180,19 @@ export default function MatchScreen() {
         <Text style={[Font.small, styles.center]}>Danke! Wir prüfen deine Meldung.</Text>
       ) : reporting ? (
         <Card>
-          <TextField label="Was ist passiert?" multiline value={reportText} onChangeText={setReportText} placeholder="Beschreibe kurz das Problem" />
+          <Text style={Font.small}>Was ist passiert?</Text>
+          <View style={styles.reasons}>
+            {REPORT_REASONS.map((reason) => (
+              <Pressable
+                key={reason}
+                accessibilityRole="button"
+                onPress={() => setReportText(reason)}
+                style={[styles.reason, reportText === reason && styles.reasonActive]}>
+                <Text style={[styles.reasonText, reportText === reason && styles.reasonTextActive]}>{reason}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <TextField multiline value={reportText} onChangeText={setReportText} placeholder="Oder beschreibe kurz das Problem" />
           <View style={styles.row}>
             <Button small variant="secondary" title="Abbrechen" onPress={() => setReporting(false)} style={styles.flex} />
             <Button small variant="danger" title="Melden" onPress={sendReport} disabled={!reportText.trim()} style={styles.flex} />
@@ -254,4 +268,9 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   ringName: { fontWeight: '600', minWidth: 70 },
   bold: { fontWeight: '700' },
+  reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  reason: { borderWidth: 1, borderColor: Colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
+  reasonActive: { borderColor: Colors.danger, backgroundColor: Colors.dangerSoft },
+  reasonText: { fontSize: 13, color: Colors.text },
+  reasonTextActive: { color: Colors.danger, fontWeight: '600' },
 });

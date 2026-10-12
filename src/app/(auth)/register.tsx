@@ -120,7 +120,7 @@ export default function RegisterScreen() {
           <Text style={styles.link} onPress={() => Linking.openURL(PRIVACY_URL)}>
             Datenschutzerklärung
           </Text>
-          .
+          . Ich biete und verlange für einen Tausch kein Geld.
         </Text>
       </Pressable>
       <ErrorText>{error}</ErrorText>

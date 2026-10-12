@@ -27,6 +27,7 @@ export default function OnboardingScreen() {
   const [semester, setSemester] = useState(1);
   const [placeType, setPlaceType] = useState<PlaceType>('full');
   const [lawsuitPlace, setLawsuitPlace] = useState(false);
+  const [provisionalEnrollment, setProvisionalEnrollment] = useState(false);
   const [admissionConfirmed, setAdmissionConfirmed] = useState(false);
   const [term, setTerm] = useState(terms[0]);
   const [ringSwap, setRingSwap] = useState(true);
@@ -53,6 +54,7 @@ export default function OnboardingScreen() {
         semester,
         placeType,
         lawsuitPlace,
+        provisionalEnrollment,
         admissionConfirmed: semester > 0 || admissionConfirmed,
         desiredTerm: term,
         ringSwap,
@@ -176,6 +178,12 @@ export default function OnboardingScreen() {
             description="Manche Universitäten schließen Klageplätze vom Tausch aus."
             value={lawsuitPlace}
             onChange={setLawsuitPlace}
+          />
+          <ToggleRow
+            label="Nur vorläufig eingeschrieben"
+            description="Vorläufige Plätze lassen sich nicht gegen endgültige tauschen."
+            value={provisionalEnrollment}
+            onChange={setProvisionalEnrollment}
           />
         </>
       ) : null}

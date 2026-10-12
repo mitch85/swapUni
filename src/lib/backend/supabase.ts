@@ -53,6 +53,9 @@ const toUniversity = (r: Row): University =>
     requiresDeanApproval: r.requires_dean_approval,
     excludesLawsuitPlaces: r.excludes_lawsuit_places,
     partnerMustApplyOnline: r.partner_must_apply_online,
+    allowedTerms: r.allowed_terms ?? 'both',
+    lastSwapTerm: r.last_swap_term,
+    achievementNote: r.achievement_note,
     deadlineSoSe: r.deadline_sose,
     deadlineWiSe: r.deadline_wise,
     forms: r.forms ?? [],
@@ -72,6 +75,7 @@ const toRequest = (r: Row): SwapRequest => ({
   semester: r.semester,
   placeType: r.place_type,
   lawsuitPlace: r.lawsuit_place,
+  provisionalEnrollment: r.provisional_enrollment ?? false,
   admissionConfirmed: r.admission_confirmed,
   desiredTerm: r.desired_term,
   ringSwap: r.ring_swap,
@@ -87,6 +91,7 @@ const fromRequestInput = (input: SwapRequestInput) => ({
   semester: input.semester,
   place_type: input.placeType,
   lawsuit_place: input.lawsuitPlace,
+  provisional_enrollment: input.provisionalEnrollment,
   admission_confirmed: input.admissionConfirmed,
   desired_term: input.desiredTerm,
   ring_swap: input.ringSwap,
@@ -342,6 +347,10 @@ export class SupabaseBackend implements Backend {
 
   async reportUser(userId: string, reason: string) {
     check(await this.client.from('reports').insert({ reported_user_id: userId, reason }));
+  }
+
+  async reportUniversityIssue(universityId: string, message: string) {
+    check(await this.client.from('university_reports').insert({ university_id: universityId, message }));
   }
 
   async registerPushToken(token: string, platform: string) {

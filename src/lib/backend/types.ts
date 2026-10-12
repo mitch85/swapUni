@@ -66,6 +66,8 @@ export interface Backend {
   subscribeMessages(listener: (message: Message) => void): () => void;
 
   reportUser(userId: string, reason: string): Promise<void>;
+  /** Reports outdated or wrong swap rules of a university. */
+  reportUniversityIssue(universityId: string, message: string): Promise<void>;
   registerPushToken(token: string, platform: string): Promise<void>;
 }
 

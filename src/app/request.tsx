@@ -25,6 +25,7 @@ export default function RequestScreen() {
     semester: myRequest?.semester ?? 1,
     placeType: myRequest?.placeType ?? 'full',
     lawsuitPlace: myRequest?.lawsuitPlace ?? false,
+    provisionalEnrollment: myRequest?.provisionalEnrollment ?? false,
     admissionConfirmed: myRequest?.admissionConfirmed ?? false,
     desiredTerm: myRequest?.desiredTerm ?? upcomingTerms(new Date())[0],
     ringSwap: myRequest?.ringSwap ?? true,
@@ -130,6 +131,11 @@ export default function RequestScreen() {
           ]}
         />
         <ToggleRow label="Studienplatz über Klage erhalten" value={form.lawsuitPlace} onChange={(lawsuitPlace) => update({ lawsuitPlace })} />
+        <ToggleRow
+          label="Nur vorläufig eingeschrieben"
+          value={form.provisionalEnrollment}
+          onChange={(provisionalEnrollment) => update({ provisionalEnrollment })}
+        />
       </Card>
 
       <Card>

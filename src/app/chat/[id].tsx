@@ -80,6 +80,15 @@ export default function ChatScreen() {
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
+          ListHeaderComponent={
+            <View style={styles.notice}>
+              <Icon name="shield-checkmark-outline" size={18} color={Colors.warning} />
+              <Text style={[Font.small, styles.flex]}>
+                Für einen Studienplatztausch darf kein Geld fließen. Beide Partner müssen das im Antrag versichern, sonst droht die
+                Exmatrikulation. Geldangebote bitte über „Profil melden“ melden.
+              </Text>
+            </View>
+          }
           ListEmptyComponent={
             <Text style={[Font.small, styles.empty]}>
               Stell dich kurz vor und besprecht, wie ihr die Tauschanträge einreicht. Teile keine sensiblen Daten wie Passwörter.
@@ -139,6 +148,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
   },
   messages: { padding: Spacing.lg, gap: Spacing.sm, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', flexGrow: 1 },
+  notice: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    backgroundColor: Colors.warningSoft,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
   empty: { textAlign: 'center', marginTop: Spacing.xxl, paddingHorizontal: Spacing.xl },
   bubble: { maxWidth: '80%', borderRadius: Radius.lg, paddingHorizontal: 14, paddingVertical: 10, gap: 2 },
   mine: { alignSelf: 'flex-end', backgroundColor: Colors.primary, borderBottomRightRadius: 4 },

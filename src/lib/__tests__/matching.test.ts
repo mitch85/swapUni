@@ -20,6 +20,7 @@ function offer(currentUniversityId: string, targetUniversityIds: string[], extra
     semester: 3,
     placeType: 'full',
     lawsuitPlace: false,
+    provisionalEnrollment: false,
     admissionConfirmed: true,
     desiredTerm: TERM,
     ringSwap: true,
@@ -93,16 +94,37 @@ describe('evaluateSwap', () => {
       unis,
       NOW,
     );
-    expect(checks.find((c) => c.label === 'Fachsemester nicht kompatibel')?.status).toBe('fail');
+    expect(checks.find((c) => c.label === 'Fachsemester unterschiedlich')?.status).toBe('fail');
   });
 
-  it('warns about a one-semester difference in the pre-clinical part', () => {
+  it('requires the same semester in the pre-clinical part too', () => {
     const checks = evaluateSwap(
       [offer('mainz', ['freiburg'], { semester: 2 }), offer('freiburg', ['mainz'], { semester: 3 })],
       unis,
       NOW,
     );
-    expect(checks.find((c) => c.label === 'Fachsemester weichen um 1 ab')?.status).toBe('warn');
+    expect(checks.find((c) => c.label === 'Fachsemester unterschiedlich')?.status).toBe('fail');
+  });
+
+  it('respects term restrictions and swaps that end at a certain term', () => {
+    const summer = evaluateSwap([offer('mainz', ['dresden']), offer('dresden', ['mainz'])], unis, NOW);
+    expect(summer.find((c) => c.status === 'fail')?.detail).toContain('nur zum Wintersemester');
+    const winter = { desiredTerm: 'WiSe 2027/28' };
+    const ok = evaluateSwap([offer('mainz', ['dresden'], winter), offer('dresden', ['mainz'], winter)], unis, NOW);
+    expect(ok.some((c) => c.status === 'fail')).toBe(false);
+    expect(ok.find((c) => c.label === 'Leistungsstand wird geprüft')?.status).toBe('warn');
+
+    const hamburg = evaluateSwap([offer('mainz', ['hamburg']), offer('hamburg', ['mainz'])], unis, NOW);
+    expect(hamburg.find((c) => c.status === 'fail')?.detail).toContain('nur noch bis WiSe 2026/27');
+  });
+
+  it('does not swap provisional against final places', () => {
+    const checks = evaluateSwap(
+      [offer('mainz', ['freiburg'], { provisionalEnrollment: true }), offer('freiburg', ['mainz'])],
+      unis,
+      NOW,
+    );
+    expect(checks.find((c) => c.label === 'Vorläufige und endgültige Einschreibung')?.status).toBe('fail');
   });
 
   it('applies minimum semester, model program and lawsuit rules', () => {

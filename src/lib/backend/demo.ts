@@ -39,8 +39,8 @@ interface DemoState {
   successfulSwaps: number;
 }
 
-const STORAGE_KEY = 'swapuni-demo-v1';
-const VERSION = 1;
+const STORAGE_KEY = 'swapuni-demo-v2';
+const VERSION = 2;
 
 const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 const now = () => new Date().toISOString();
@@ -107,6 +107,7 @@ function simulatedRequest(
     semester,
     placeType: 'full',
     lawsuitPlace: false,
+    provisionalEnrollment: false,
     admissionConfirmed: true,
     desiredTerm: term,
     ringSwap: ring,
@@ -456,6 +457,10 @@ export class DemoBackend implements Backend {
   }
 
   async reportUser() {
+    // Reports are only stored server-side.
+  }
+
+  async reportUniversityIssue() {
     // Reports are only stored server-side.
   }
 

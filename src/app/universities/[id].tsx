@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Badge, Card, EmptyState, Icon, InfoRow, Screen } from '@/components/ui';
+import { Badge, Button, Card, EmptyState, Icon, InfoRow, Screen, TextField } from '@/components/ui';
 import { Colors, Font, Spacing } from '@/constants/theme';
 import { useApp } from '@/lib/app-state';
+import { backend } from '@/lib/backend';
 import { swapRuleSummary } from '@/lib/format';
 
 const ringLabel = { yes: 'Möglich', no: 'Nicht möglich', unknown: 'Unbekannt' } as const;
@@ -55,9 +57,13 @@ export default function UniversityScreen() {
           {uni.regularSwapMinSemester ? (
             <InfoRow label="Tausch mit Regelstudiengang" value={`ab ${uni.regularSwapMinSemester}. Semester`} />
           ) : null}
-          <InfoRow label="Semester müssen exakt passen" value={uni.requiresExactSemester ? 'Ja' : 'Ab der Klinik'} />
           {uni.requiresDeanApproval ? <InfoRow label="Dekanatsgenehmigung" value="Erforderlich" /> : null}
           {uni.excludesLawsuitPlaces ? <InfoRow label="Klageplätze" value="Vom Tausch ausgeschlossen" /> : null}
+          {uni.allowedTerms !== 'both' ? (
+            <InfoRow label="Wechsel nur zum" value={uni.allowedTerms === 'WiSe' ? 'Wintersemester' : 'Sommersemester'} />
+          ) : null}
+          {uni.lastSwapTerm ? <InfoRow label="Tausch möglich bis" value={uni.lastSwapTerm} /> : null}
+          {uni.achievementNote ? <InfoRow label="Leistungsstand" value={uni.achievementNote} /> : null}
         </View>
         {uni.notes.map((note) => (
           <View key={note} style={styles.note}>
@@ -69,8 +75,14 @@ export default function UniversityScreen() {
 
       <Card>
         <Text style={Font.subheading}>Antragsfristen</Text>
-        <InfoRow label="Sommersemester" value={uni.deadlineSoSe ?? 'Keine Angabe'} />
-        <InfoRow label="Wintersemester" value={uni.deadlineWiSe ?? 'Keine Angabe'} />
+        <InfoRow
+          label="Sommersemester"
+          value={uni.allowedTerms === 'WiSe' ? 'Kein Tausch zum SoSe' : (uni.deadlineSoSe ?? 'Keine Angabe')}
+        />
+        <InfoRow
+          label="Wintersemester"
+          value={uni.allowedTerms === 'SoSe' ? 'Kein Tausch zum WiSe' : (uni.deadlineWiSe ?? 'Keine Angabe')}
+        />
       </Card>
 
       <Card>
@@ -90,7 +102,46 @@ export default function UniversityScreen() {
         <Badge tone="neutral" icon="time-outline" label={uni.updatedAt ? `Stand ${new Date(uni.updatedAt).toLocaleDateString('de-DE')}` : 'Stand: Übersichtsplan'} />
         <Text style={Font.tiny}>Angaben ohne Gewähr – bitte vor dem Antrag bei der Universität prüfen.</Text>
       </View>
+      <ReportIssue universityId={uni.id} />
     </Screen>
+  );
+}
+
+function ReportIssue({ universityId }: { universityId: string }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+  async function send() {
+    setState('sending');
+    try {
+      await backend.reportUniversityIssue(universityId, text.trim());
+      setState('sent');
+      setOpen(false);
+    } catch {
+      setState('error');
+    }
+  }
+
+  if (state === 'sent') return <Text style={[Font.small, styles.center]}>Danke! Wir prüfen die Angaben.</Text>;
+  if (!open) {
+    return <Button variant="ghost" icon="flag-outline" title="Angabe falsch oder veraltet?" onPress={() => setOpen(true)} />;
+  }
+  return (
+    <Card>
+      <TextField
+        label="Was stimmt nicht?"
+        multiline
+        value={text}
+        onChangeText={setText}
+        placeholder="z. B. neue Frist, anderer Link, Tausch nicht mehr möglich"
+      />
+      {state === 'error' ? <Text style={styles.error}>Senden fehlgeschlagen. Bitte später erneut versuchen.</Text> : null}
+      <View style={styles.row}>
+        <Button small variant="secondary" title="Abbrechen" onPress={() => setOpen(false)} style={styles.flex} />
+        <Button small title="Senden" onPress={send} disabled={!text.trim()} loading={state === 'sending'} style={styles.flex} />
+      </View>
+    </Card>
   );
 }
 
@@ -113,4 +164,7 @@ const styles = StyleSheet.create({
   linkText: { color: Colors.primary, fontWeight: '500', fontSize: 15 },
   pressed: { opacity: 0.6 },
   footer: { gap: Spacing.sm, alignItems: 'center' },
+  row: { flexDirection: 'row', gap: Spacing.md },
+  center: { textAlign: 'center' },
+  error: { color: Colors.danger, fontSize: 13 },
 });

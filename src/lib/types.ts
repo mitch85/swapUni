@@ -37,6 +37,12 @@ export interface University {
   requiresDeanApproval: boolean;
   excludesLawsuitPlaces: boolean;
   partnerMustApplyOnline: boolean;
+  /** Terms in which the university accepts swaps at all. */
+  allowedTerms: 'both' | 'WiSe' | 'SoSe';
+  /** Last term for which swaps are still accepted (e.g. Hamburg: "WiSe 2026/27"); null = no end. */
+  lastSwapTerm: string | null;
+  /** Required academic progress, e.g. "mind. 80 % der Leistungen des Fachsemesters". */
+  achievementNote: string | null;
   deadlineSoSe: string | null;
   deadlineWiSe: string | null;
   forms: UniversityForm[];
@@ -74,6 +80,8 @@ export interface SwapRequestInput {
   semester: number;
   placeType: PlaceType;
   lawsuitPlace: boolean;
+  /** Only provisionally enrolled (vorläufige Einschreibung). */
+  provisionalEnrollment: boolean;
   admissionConfirmed: boolean;
   /** e.g. "WiSe 2026/27" or "SoSe 2027" */
   desiredTerm: string;
