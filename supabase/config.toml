@@ -1,0 +1,20 @@
+# Minimal configuration for the Supabase CLI (`supabase start`, `supabase db push`).
+project_id = "swapuni"
+
+[db]
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["swapuni://"]
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[functions.notify]
+verify_jwt = false
