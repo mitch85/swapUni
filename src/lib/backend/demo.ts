@@ -34,13 +34,13 @@ interface DemoState {
   /** profile id -> public profile, also for simulated users */
   people: Record<string, PublicProfile>;
   favorites: Record<string, string[]>;
-  conversations: { id: string; participantIds: string[] }[];
+  conversations: { id: string; participantIds: string[]; checklist: Record<string, string[]> }[];
   messages: (Message & { readBy: string[] })[];
   successfulSwaps: number;
 }
 
-const STORAGE_KEY = 'swapuni-demo-v2';
-const VERSION = 2;
+const STORAGE_KEY = 'swapuni-demo-v3';
+const VERSION = 3;
 
 const id = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 const now = () => new Date().toISOString();
@@ -84,6 +84,7 @@ function seed(): DemoState {
       firstName,
       lastInitial: lastName[0],
       verified: i % 3 !== 2,
+      verificationStatus: i % 3 !== 2 ? 'verified' : i % 2 ? 'pending' : 'none',
     };
     state.requests.push(simulatedRequest(userId, uni, wishes, semester, ring, term));
   });
@@ -108,6 +109,7 @@ function simulatedRequest(
     placeType: 'full',
     lawsuitPlace: false,
     provisionalEnrollment: false,
+    physikumPassed: semester >= 5,
     admissionConfirmed: true,
     desiredTerm: term,
     ringSwap: ring,
@@ -200,6 +202,7 @@ export class DemoBackend implements Backend {
       email: key,
       verificationStatus: 'none',
       pushEnabled: true,
+      blocked: false,
     };
     state.accounts[key] = { password: input.password, profile };
     state.people[userId] = this.toPublic(profile);
@@ -216,6 +219,7 @@ export class DemoBackend implements Backend {
       firstName: profile.firstName,
       lastInitial: profile.lastName.slice(0, 1),
       verified: profile.verificationStatus === 'verified',
+      verificationStatus: profile.verificationStatus,
     };
   }
 
@@ -317,12 +321,20 @@ export class DemoBackend implements Backend {
     );
     if (hasPartner || !wish) return;
     const userId = `sim-partner-${wish}-${mine.currentUniversityId}`;
-    state.people[userId] = { id: userId, username: 'clara', firstName: 'Clara', lastInitial: 'S', verified: true };
+    state.people[userId] = {
+      id: userId,
+      username: 'clara',
+      firstName: 'Clara',
+      lastInitial: 'S',
+      verified: true,
+      verificationStatus: 'verified',
+    };
     state.requests = state.requests.filter((r) => r.userId !== userId);
     state.requests.push({
       ...simulatedRequest(userId, wish, [mine.currentUniversityId], mine.semester, mine.ringSwap, mine.desiredTerm),
       program: mine.program,
       placeType: mine.placeType,
+      physikumPassed: true,
     });
   }
 
@@ -370,6 +382,10 @@ export class DemoBackend implements Backend {
     await this.save();
   }
 
+  async touchActivity() {
+    // Inactivity is only tracked server-side.
+  }
+
   async listConversations(): Promise<Conversation[]> {
     const { state, account } = await this.me();
     const uid = account.profile.id;
@@ -383,9 +399,22 @@ export class DemoBackend implements Backend {
           participants: c.participantIds.filter((p) => p !== uid).map((p) => state.people[p]).filter(Boolean),
           lastMessage: last ? strip(last) : null,
           unreadCount: messages.filter((m) => m.senderId !== uid && !m.readBy.includes(uid)).length,
+          checklist: c.checklist ?? {},
         };
       })
       .sort((a, b) => (b.lastMessage?.createdAt ?? '').localeCompare(a.lastMessage?.createdAt ?? ''));
+  }
+
+  async setChecklistItem(conversationId: string, item: string, done: boolean) {
+    const { state, account } = await this.me();
+    const conversation = state.conversations.find((c) => c.id === conversationId);
+    if (!conversation) throw new BackendError('Unterhaltung nicht gefunden.');
+    const uid = account.profile.id;
+    const items = new Set(conversation.checklist?.[uid] ?? []);
+    if (done) items.add(item);
+    else items.delete(item);
+    conversation.checklist = { ...conversation.checklist, [uid]: [...items] };
+    await this.save();
   }
 
   async startConversation(userIds: string[]) {
@@ -395,7 +424,7 @@ export class DemoBackend implements Backend {
       (c) => c.participantIds.length === members.length && members.every((m) => c.participantIds.includes(m)),
     );
     if (existing) return existing.id;
-    const conversation = { id: `conv-${id()}`, participantIds: members };
+    const conversation = { id: `conv-${id()}`, participantIds: members, checklist: {} };
     state.conversations.push(conversation);
     await this.save();
     return conversation.id;

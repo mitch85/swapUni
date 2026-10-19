@@ -61,6 +61,8 @@ export interface Profile {
   email?: string;
   verificationStatus: VerificationStatus;
   pushEnabled: boolean;
+  /** Set by an admin, e.g. after money was offered for a swap. */
+  blocked: boolean;
 }
 
 export interface PublicProfile {
@@ -69,12 +71,13 @@ export interface PublicProfile {
   firstName: string;
   lastInitial: string;
   verified: boolean;
+  verificationStatus: VerificationStatus;
 }
 
 export interface SwapRequestInput {
   program: Program;
   currentUniversityId: string;
-  /** Wish universities in order of priority (1–3). */
+  /** Wish universities in order of priority (see MAX_WISHES). */
   targetUniversityIds: string[];
   /** Current Fachsemester, 0 = before start of studies. */
   semester: number;
@@ -82,6 +85,8 @@ export interface SwapRequestInput {
   lawsuitPlace: boolean;
   /** Only provisionally enrolled (vorläufige Einschreibung). */
   provisionalEnrollment: boolean;
+  /** Physikum (first medical exam) passed – required for swaps into the clinical part. */
+  physikumPassed: boolean;
   admissionConfirmed: boolean;
   /** e.g. "WiSe 2026/27" or "SoSe 2027" */
   desiredTerm: string;
@@ -105,6 +110,8 @@ export interface Conversation {
   participants: PublicProfile[];
   lastMessage: Message | null;
   unreadCount: number;
+  /** Swap checklist: user id -> completed step keys. */
+  checklist: Record<string, string[]>;
 }
 
 export interface Message {

@@ -4,7 +4,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
   MAX_WISHES,
-  PROGRAMS,
+  ENABLED_PROGRAMS,
+  PreStartNotice,
+  programLabel,
   SemesterStepper,
   UniversityPickerModal,
   toggleWish,
@@ -26,6 +28,7 @@ export default function RequestScreen() {
     placeType: myRequest?.placeType ?? 'full',
     lawsuitPlace: myRequest?.lawsuitPlace ?? false,
     provisionalEnrollment: myRequest?.provisionalEnrollment ?? false,
+    physikumPassed: myRequest?.physikumPassed ?? false,
     admissionConfirmed: myRequest?.admissionConfirmed ?? false,
     desiredTerm: myRequest?.desiredTerm ?? upcomingTerms(new Date())[0],
     ringSwap: myRequest?.ringSwap ?? true,
@@ -49,7 +52,11 @@ export default function RequestScreen() {
     setSaving(true);
     setError(null);
     try {
-      await backend.saveMyRequest({ ...form, admissionConfirmed: form.semester > 0 || form.admissionConfirmed });
+      await backend.saveMyRequest({
+        ...form,
+        admissionConfirmed: form.semester > 0 || form.admissionConfirmed,
+        physikumPassed: form.semester >= 4 && form.physikumPassed,
+      });
       await refresh();
       router.back();
     } catch (e) {
@@ -107,12 +114,32 @@ export default function RequestScreen() {
 
       <Card>
         <Text style={Font.small}>Studiengang</Text>
-        <SegmentedControl value={form.program} onChange={(program) => update({ program })} options={PROGRAMS} />
+        {ENABLED_PROGRAMS.length > 1 ? (
+          <SegmentedControl value={form.program} onChange={(program) => update({ program })} options={ENABLED_PROGRAMS} />
+        ) : (
+          <Text style={Font.subheading}>{programLabel(form.program)}</Text>
+        )}
       </Card>
 
       <Card>
         <Text style={Font.small}>Fachsemester</Text>
-        <SemesterStepper value={form.semester} onChange={(semester) => update({ semester })} />
+        <SemesterStepper
+          value={form.semester}
+          onChange={(semester) => update(semester >= 5 ? { semester, physikumPassed: true } : { semester })}
+        />
+        {form.semester >= 4 ? (
+          <ToggleRow
+            label="Physikum bestanden"
+            description="Für einen Tausch ins klinische Semester nötig"
+            value={form.physikumPassed}
+            onChange={(physikumPassed) => update({ physikumPassed })}
+          />
+        ) : null}
+        {form.semester === 0 ? (
+          <PreStartNotice
+            universities={[form.currentUniversityId, ...form.targetUniversityIds].map((id) => universityById(id))}
+          />
+        ) : null}
         {form.semester === 0 ? (
           <OptionRow
             multi

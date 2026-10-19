@@ -76,6 +76,7 @@ const toRequest = (r: Row): SwapRequest => ({
   placeType: r.place_type,
   lawsuitPlace: r.lawsuit_place,
   provisionalEnrollment: r.provisional_enrollment ?? false,
+  physikumPassed: r.physikum_passed ?? false,
   admissionConfirmed: r.admission_confirmed,
   desiredTerm: r.desired_term,
   ringSwap: r.ring_swap,
@@ -92,6 +93,7 @@ const fromRequestInput = (input: SwapRequestInput) => ({
   place_type: input.placeType,
   lawsuit_place: input.lawsuitPlace,
   provisional_enrollment: input.provisionalEnrollment,
+  physikum_passed: input.physikumPassed,
   admission_confirmed: input.admissionConfirmed,
   desired_term: input.desiredTerm,
   ring_swap: input.ringSwap,
@@ -103,6 +105,7 @@ const toPublicProfile = (r: Row): PublicProfile => ({
   firstName: r.first_name,
   lastInitial: r.last_initial ?? '',
   verified: !!r.verified,
+  verificationStatus: r.verification_status ?? (r.verified ? 'verified' : 'none'),
 });
 
 const toMessage = (r: Row): Message => ({
@@ -181,8 +184,13 @@ export class SupabaseBackend implements Backend {
   }
 
   async deleteAccount() {
-    check(await this.client.rpc('delete_my_account'));
+    // Runs server-side so that uploaded proofs are removed through the Storage API.
+    check(await this.client.functions.invoke('delete-account', { method: 'POST' }));
     await this.client.auth.signOut();
+  }
+
+  async touchActivity() {
+    check(await this.client.rpc('touch_activity'));
   }
 
   async getProfile(): Promise<Profile> {
@@ -197,6 +205,7 @@ export class SupabaseBackend implements Backend {
       email: session.email,
       verificationStatus: r.verification_status,
       pushEnabled: r.push_enabled,
+      blocked: !!r.blocked_at,
     };
   }
 
@@ -307,11 +316,26 @@ export class SupabaseBackend implements Backend {
         id: c.id,
         participants: (c.participant_ids as string[])
           .filter((id) => id !== uid)
-          .map((id) => profileMap.get(id) ?? { id, username: 'gelöscht', firstName: 'Gelöschtes Konto', lastInitial: '', verified: false }),
+          .map(
+            (id) =>
+              profileMap.get(id) ?? {
+                id,
+                username: 'gelöscht',
+                firstName: 'Gelöschtes Konto',
+                lastInitial: '',
+                verified: false,
+                verificationStatus: 'none' as const,
+              },
+          ),
         lastMessage: own[0] ? toMessage(own[0]) : null,
+        checklist: (c.checklist ?? {}) as Record<string, string[]>,
         unreadCount: own.filter((m) => m.sender_id !== uid && !(m.read_by as string[]).includes(uid)).length,
       };
     });
+  }
+
+  async setChecklistItem(conversationId: string, item: string, done: boolean) {
+    check(await this.client.rpc('set_checklist_item', { conversation: conversationId, item, done }));
   }
 
   async startConversation(userIds: string[]) {

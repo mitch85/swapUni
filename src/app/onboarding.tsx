@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
+  ENABLED_PROGRAMS,
   MAX_WISHES,
-  PROGRAMS,
+  PreStartNotice,
   SemesterStepper,
   UniversityList,
   toggleWish,
@@ -28,6 +29,7 @@ export default function OnboardingScreen() {
   const [placeType, setPlaceType] = useState<PlaceType>('full');
   const [lawsuitPlace, setLawsuitPlace] = useState(false);
   const [provisionalEnrollment, setProvisionalEnrollment] = useState(false);
+  const [physikumPassed, setPhysikumPassed] = useState(false);
   const [admissionConfirmed, setAdmissionConfirmed] = useState(false);
   const [term, setTerm] = useState(terms[0]);
   const [ringSwap, setRingSwap] = useState(true);
@@ -55,6 +57,7 @@ export default function OnboardingScreen() {
         placeType,
         lawsuitPlace,
         provisionalEnrollment,
+        physikumPassed: semester >= 4 && physikumPassed,
         admissionConfirmed: semester > 0 || admissionConfirmed,
         desiredTerm: term,
         ringSwap,
@@ -102,7 +105,7 @@ export default function OnboardingScreen() {
           <Title center subtitle="Wähle deinen Studiengang aus.">
             Was studierst du?
           </Title>
-          {PROGRAMS.map((p) => (
+          {ENABLED_PROGRAMS.map((p) => (
             <OptionRow
               key={p.value}
               icon="medkit-outline"
@@ -111,6 +114,7 @@ export default function OnboardingScreen() {
               onPress={() => setProgram(p.value)}
             />
           ))}
+          <Text style={[Font.small, styles.center]}>Zahnmedizin, Tiermedizin und Pharmazie folgen.</Text>
         </>
       ) : null}
 
@@ -153,15 +157,33 @@ export default function OnboardingScreen() {
           <Title center subtitle="Wähle dein aktuelles Fachsemester.">
             In welchem Fachsemester bist du?
           </Title>
-          <SemesterStepper value={semester} onChange={setSemester} />
+          <SemesterStepper
+            value={semester}
+            onChange={(value) => {
+              setSemester(value);
+              // From the 5th semester on, students are in the clinical part and have passed the Physikum.
+              if (value >= 5) setPhysikumPassed(true);
+            }}
+          />
           {semester === 0 ? (
-            <OptionRow
-              multi
-              icon="document-text-outline"
-              label="Mein Studienplatz ist bestätigt"
-              description="Ein Tausch vor Studienbeginn ist nur mit Zulassungsbescheid möglich."
-              selected={admissionConfirmed}
-              onPress={() => setAdmissionConfirmed((v) => !v)}
+            <>
+              <OptionRow
+                multi
+                icon="document-text-outline"
+                label="Mein Studienplatz ist bestätigt"
+                description="Ein Tausch vor Studienbeginn ist nur mit Zulassungsbescheid möglich."
+                selected={admissionConfirmed}
+                onPress={() => setAdmissionConfirmed((v) => !v)}
+              />
+              <PreStartNotice universities={[current, ...wishes].map((id) => (id ? universityById(id) : undefined))} />
+            </>
+          ) : null}
+          {semester >= 4 ? (
+            <ToggleRow
+              label="Physikum bestanden"
+              description="Für einen Tausch ins klinische Semester (ab dem 5.) nötig."
+              value={physikumPassed}
+              onChange={setPhysikumPassed}
             />
           ) : null}
           <Text style={[Font.subheading, styles.question]}>Art deines Studienplatzes</Text>
@@ -217,4 +239,5 @@ const styles = StyleSheet.create({
   spacer: { width: 72 },
   link: { color: Colors.primary, fontWeight: '600', width: 72 },
   question: { marginTop: Spacing.md },
+  center: { textAlign: 'center' },
 });

@@ -57,7 +57,12 @@ export interface Backend {
   listFavorites(): Promise<string[]>;
   setFavorite(requestId: string, favorite: boolean): Promise<void>;
 
+  /** Marks the user as active (requests of users inactive for a year get paused). */
+  touchActivity(): Promise<void>;
+
   listConversations(): Promise<Conversation[]>;
+  /** Ticks or unticks one step of the signed-in user's swap checklist in a conversation. */
+  setChecklistItem(conversationId: string, item: string, done: boolean): Promise<void>;
   startConversation(userIds: string[]): Promise<string>;
   listMessages(conversationId: string): Promise<Message[]>;
   sendMessage(conversationId: string, body: string): Promise<void>;

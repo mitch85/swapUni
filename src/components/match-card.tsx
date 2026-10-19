@@ -13,6 +13,13 @@ export const displayName = (p: PublicProfile) => `${p.firstName}${p.lastInitial 
 
 export const matchHref = (id: string) => `/match/${encodeURIComponent(id)}` as const;
 
+/** Verification state as other students see it. */
+export function VerificationBadge({ profile }: { profile: PublicProfile }) {
+  if (profile.verified) return <Badge tone="success" icon="checkmark-circle" label="Verifizierung abgeschlossen" />;
+  if (profile.verificationStatus === 'pending') return <Badge tone="warning" icon="time-outline" label="Verifizierung ausstehend" />;
+  return <Badge tone="neutral" label="Nicht verifiziert" />;
+}
+
 export function CompatibilityBadge({ match }: { match: Match }) {
   if (match.compatibility === 'compatible') {
     return <Badge tone="success" icon="checkmark-circle" label="Voraussetzungen erfüllt" />;
@@ -48,7 +55,11 @@ function OfferSummary({ offer, compact }: { offer: Offer; compact?: boolean }) {
       <View style={styles.flex}>
         <View style={styles.nameRow}>
           <Text style={Font.subheading}>{displayName(offer.profile)}</Text>
-          {offer.profile.verified ? <Icon name="checkmark-circle" size={16} color={Colors.success} /> : null}
+          {offer.profile.verified ? (
+            <Icon name="checkmark-circle" size={16} color={Colors.success} />
+          ) : offer.profile.verificationStatus === 'pending' ? (
+            <Icon name="time-outline" size={16} color={Colors.warning} />
+          ) : null}
         </View>
         <Text style={Font.small}>
           {from?.city ?? offer.currentUniversityId} → {to.join(', ')}

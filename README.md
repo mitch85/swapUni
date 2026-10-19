@@ -6,6 +6,8 @@ Gebaut mit **Expo (React Native, SDK 57) + Expo Router** und **Supabase** (Postg
 
 ## Funktionen
 
+Aktuell nur Humanmedizin; Zahnmedizin, Tiermedizin und Pharmazie sind vorbereitet (`ENABLED_PROGRAMS` in `src/components/request-fields.tsx`) und folgen, sobald ihre Uni-Regeln vorliegen.
+
 | Anforderung | Umsetzung |
 | --- | --- |
 | Registrierung mit E-Mail, Passwort, eigenem Benutzernamen | `src/app/(auth)/*`, Supabase Auth mit E-Mail-Bestätigung, Benutzername eindeutig |
@@ -14,6 +16,7 @@ Gebaut mit **Expo (React Native, SDK 57) + Expo Router** und **Supabase** (Postg
 | Tauschpartner ermitteln | Direkte Tausche und Ringtausche zu dritt (`src/lib/matching.ts`) |
 | Voraussetzungen der Unis einbeziehen | Vorprüfung je Match: gleiches Fachsemester, Semesterregeln, Wechsel nur zum WiSe/SoSe, Tauschende einer Uni, vorläufige Einschreibung, Leistungsstand, Modellstudiengang, Ringtausch-Erlaubnis, Klageplätze, Voll-/Teilstudienplatz, Dekanatsgenehmigung, Online-Bewerbung |
 | Kontakte der Unis (Formulare, Studienbüro) | `src/app/universities/*` mit Fristen, Tauschformularen, Links, E-Mail und Telefon |
+| Tausch-Checkliste nach dem Match | Im Chat: Formulare, Unterschriften, Einreichung, Genehmigung, Einschreibung – jeder hakt seine Schritte ab, ohne Prüfung durch die App |
 | Erfolgreiche Vermittlungen kennzeichnen und aus dem Pool löschen | „Tausch erfolgreich“ im Match; das Gesuch verschwindet aus dem Pool, es bleibt nur eine anonyme Statistik |
 | Push bei neuem passendem Partner und bei Chat-Nachrichten | Edge Function `supabase/functions/notify` + Expo Push |
 | Favoriten, Chat, Übersicht Matches / alle Angebote | Tab „Tauschen“ (Matches, Alle Angebote, Favoriten), Tab „Nachrichten“ mit Realtime-Chat, Gruppenchat bei Ringtausch |
@@ -57,6 +60,27 @@ Ohne Supabase-Zugangsdaten läuft die App im **Demo-Modus**. Die Daten liegen da
 
 Push funktioniert nur in echten App-Builds (Development Build oder Store-Build), nicht im Web und nicht in Expo Go.
 
+### Weitere Server-Funktionen
+
+```bash
+npx supabase functions deploy delete-account          # Konto löschen inkl. Nachweise
+npx supabase functions deploy verification-cleanup --no-verify-jwt
+npx supabase functions deploy maintenance --no-verify-jwt
+```
+
+- **verification-cleanup:** einen weiteren Webhook anlegen (Tabelle `profiles`, Ereignis `UPDATE`, gleicher Header). Sobald ein Nachweis auf `verified` oder `rejected` gesetzt wird, wird die Datei gelöscht.
+- **maintenance:** einmal täglich aufrufen, z. B. mit `pg_cron` und `pg_net` (Extensions im Dashboard aktivieren):
+  ```sql
+  select cron.schedule('swapuni-maintenance', '0 3 * * *', $$
+    select net.http_post(
+      url := 'https://<project-ref>.supabase.co/functions/v1/maintenance',
+      headers := '{"x-webhook-secret": "<zufälliger-wert>"}'::jsonb
+    );
+  $$);
+  ```
+  Die Funktion pausiert Gesuche nach einem Jahr Inaktivität, erinnert zwei Wochen vorher per Push und löscht abgeschlossene Gesuche sechs Wochen nach dem erfolgreichen Tausch.
+- **Erinnerung per E-Mail (optional):** mit einem Konto bei [Resend](https://resend.com) die Secrets `RESEND_API_KEY` und `MAIL_FROM` (z. B. `SwapUni <hallo@swapuni.de>`) setzen. Ohne diese Secrets gibt es nur die Push-Erinnerung.
+
 ### Builds für die Stores
 
 ```bash
@@ -82,14 +106,13 @@ Bedeutung der Felder: `minSemester`/`maxSemester` gelten für das Semester zum W
 
 Neue Regelfelder: `allowedTerms` (`both`/`WiSe`/`SoSe`), `lastSwapTerm` (letztes Semester mit Tausch) und `achievementNote` (geforderter Leistungsstand). Das gleiche Fachsemester ist jetzt Pflicht. Vorläufige Plätze werden nicht mit endgültigen gematcht.
 
-### Noch offen, bitte prüfen
+Nach Rückmeldung der Auftraggeberin (Oktober 2026) zusätzlich: TU München erst ab dem Physikum, Halle ab dem 1. Fachsemester (Frist bis eine Woche nach Vorlesungsbeginn, kein Ringtausch), Ulm ab dem 2. Fachsemester (kein Ringtausch), Links für Augsburg und Greifswald ergänzt, Dortmund entfernt.
 
-- **Augsburg:** Das Formular verweist auf eine lokale Datei (`file:///D:/…`) und wurde deshalb nicht übernommen.
-- **Greifswald:** Der Link zeigt auf die Seite der Uni Göttingen und wurde deshalb nicht übernommen.
-- **Halle, Ulm:** Es gibt nur „nicht möglich“ in der Spalte Ringtausch. Ist jeder Tausch ausgeschlossen? Dann `swapPossible: false` setzen.
-- **Dortmund:** An der TU Dortmund gibt es keine Humanmedizin. Bitte prüfen, welche Uni gemeint ist.
-- **Lausitz (Cottbus):** Der Start ist zum WiSe 2026/27 geplant. Die Uni kommt in die Liste, sobald ihre Tauschregeln bekannt sind.
-- Telefonnummern der Studienbüros fehlen in der Tabelle. Das Feld `contactPhone` ist vorbereitet.
+### Noch offen
+
+- **Lausitz (Cottbus):** kommt in die Liste, sobald die Tauschregeln bekannt sind.
+- Telefonnummern und Ansprechpersonen der Studienbüros liefert die Auftraggeberin nach. Das Feld `contactPhone` ist vorbereitet.
+- Die Regeln sollen zweimal jährlich vor Beginn der Fristphasen geprüft werden.
 
 Meldungen über veraltete Angaben („Angabe falsch oder veraltet?“ auf jeder Uni-Seite) landen in der Tabelle `university_reports`.
 
@@ -103,17 +126,23 @@ Meldungen über veraltete Angaben („Angabe falsch oder veraltet?“ auf jeder 
   - Chats sind nur für die Teilnehmenden lesbar.
   - Nachweise liegen in einem privaten Bucket.
   - Nutzer können sich nicht selbst verifizieren.
-- Konto löschen (DSGVO) entfernt Profil, Gesuch, Chats und Nachweise vollständig.
+- Konto löschen (DSGVO) entfernt Profil, Gesuch, Chats und Nachweise sofort und vollständig.
+- Nachweise werden direkt nach der Prüfung gelöscht. Sie sind nur für das SwapUni-Team sichtbar.
+- Abgeschlossene Gesuche werden sechs Wochen nach dem erfolgreichen Tausch gelöscht; es bleibt nur eine anonyme Zählung.
+- Gesuche von Nutzern, die ein Jahr nicht aktiv waren, werden pausiert (Erinnerung zwei Wochen vorher).
 - Es werden keine Daten an Dritte weitergegeben, und es gibt keine Analytics- oder Werbe-SDKs.
 
 **Offen vor dem Launch:**
 - Eigene Datenschutzerklärung und AGB (über `EXPO_PUBLIC_PRIVACY_URL` / `EXPO_PUBLIC_TERMS_URL` setzen) und ein Impressum.
 - Ein Auftragsverarbeitungsvertrag (AVV) mit Supabase.
-- Chat-Nachrichten sind serverseitig verschlüsselt, aber nicht Ende-zu-Ende.
+- Chat-Nachrichten sind serverseitig verschlüsselt, aber nicht Ende-zu-Ende (so gewünscht).
 
 ## Verifizierung (Admin)
 
-Hochgeladene Nachweise liegen unter *Storage → verifications*. Nach der Prüfung in *Table Editor → profiles* den Wert `verification_status` auf `verified` oder `rejected` setzen. Meldungen über „Profil melden“ landen in der Tabelle `reports`, z. B. bei Geldangeboten. Geld für einen Tausch ist unzulässig; die App weist bei der Registrierung und im Chat darauf hin.
+- **Nachweise prüfen:** Dateien liegen unter *Storage → verifications*. Nach der Prüfung in *Table Editor → profiles* den Wert `verification_status` auf `verified` oder `rejected` setzen; die Datei wird danach automatisch gelöscht. Ziel: Prüfung innerhalb von zwei Werktagen.
+- **Meldungen:** Profilmeldungen landen in `reports`, Hinweise auf veraltete Uni-Daten in `university_reports`.
+- **Sperren:** Bei Geldangeboten oder anderen Verstößen in `profiles` das Feld `blocked_at` auf das aktuelle Datum setzen. Das Gesuch verschwindet aus dem Pool, Chatten ist nicht mehr möglich, die App zeigt einen Sperrhinweis. Zum Entsperren das Feld leeren.
+- **Statistik:** `select * from admin_stats;` im SQL Editor zeigt anonyme Kennzahlen (Nutzer, aktive Gesuche, erfolgreiche Tausche, offene Prüfungen, Meldungen).
 
 ## Werbung
 

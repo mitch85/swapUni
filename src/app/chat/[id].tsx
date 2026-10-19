@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SwapChecklist } from '@/components/checklist';
 import { displayName } from '@/components/match-card';
 import { Avatar, Icon } from '@/components/ui';
 import { Colors, Font, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
@@ -21,6 +22,24 @@ export default function ChatScreen() {
   const list = useRef<FlatList<Message>>(null);
 
   const conversation = conversations.find((c) => c.id === id);
+  const [localChecklist, setLocalChecklist] = useState<Record<string, string[]> | null>(null);
+  const checklist = localChecklist ?? conversation?.checklist ?? {};
+
+  async function toggleStep(step: string, done: boolean) {
+    if (!id || !session) return;
+    const mine = new Set(checklist[session.userId] ?? []);
+    if (done) mine.add(step);
+    else mine.delete(step);
+    setLocalChecklist({ ...checklist, [session.userId]: [...mine] });
+    try {
+      await backend.setChecklistItem(id, step, done);
+      await refreshConversations();
+      setLocalChecklist(null);
+    } catch (e) {
+      setLocalChecklist(null);
+      setError((e as Error).message);
+    }
+  }
   const title = conversation?.participants.map(displayName).join(', ') || 'Chat';
 
   useEffect(() => {
@@ -81,13 +100,23 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => list.current?.scrollToEnd({ animated: true })}
           ListHeaderComponent={
-            <View style={styles.notice}>
-              <Icon name="shield-checkmark-outline" size={18} color={Colors.warning} />
-              <Text style={[Font.small, styles.flex]}>
-                Für einen Studienplatztausch darf kein Geld fließen. Beide Partner müssen das im Antrag versichern, sonst droht die
-                Exmatrikulation. Geldangebote bitte über „Profil melden“ melden.
-              </Text>
-            </View>
+            <>
+              {conversation && session ? (
+                <SwapChecklist
+                  checklist={checklist}
+                  myId={session.userId}
+                  partners={conversation.participants}
+                  onToggle={toggleStep}
+                />
+              ) : null}
+              <View style={styles.notice}>
+                <Icon name="shield-checkmark-outline" size={18} color={Colors.warning} />
+                <Text style={[Font.small, styles.flex]}>
+                  Für einen Studienplatztausch darf kein Geld fließen. Beide Partner müssen das im Antrag versichern, sonst droht die
+                  Exmatrikulation. Geldangebote bitte über „Profil melden“ melden.
+                </Text>
+              </View>
+            </>
           }
           ListEmptyComponent={
             <Text style={[Font.small, styles.empty]}>

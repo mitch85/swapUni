@@ -17,9 +17,14 @@ const verificationInfo: Record<VerificationStatus, { label: string; tone: 'succe
   none: {
     label: 'Nicht verifiziert',
     tone: 'neutral',
-    text: 'Lade deine Studienbescheinigung oder deinen Zulassungsbescheid hoch. Verifizierte Profile wirken vertrauenswürdiger.',
+    text:
+      'Lade deine Studienbescheinigung, Immatrikulationsbescheinigung oder deinen Zulassungsbescheid hoch. Hochschule, Studiengang und aktueller Status müssen erkennbar sein. Andere sehen dann „Verifizierung abgeschlossen“ in deinem Profil.',
   },
-  pending: { label: 'Wird geprüft', tone: 'warning', text: 'Dein Nachweis wird geprüft. Das kann bis zu zwei Werktage dauern.' },
+  pending: {
+    label: 'Wird geprüft',
+    tone: 'warning',
+    text: 'Dein Nachweis wird innerhalb von zwei Werktagen geprüft. Andere sehen bis dahin „Verifizierung ausstehend“.',
+  },
   verified: { label: 'Verifiziert', tone: 'success', text: 'Dein Studienplatz ist bestätigt.' },
   rejected: { label: 'Abgelehnt', tone: 'danger', text: 'Dein Nachweis konnte nicht bestätigt werden. Bitte lade ein aktuelles Dokument hoch.' },
 };
@@ -131,7 +136,7 @@ export default function ProfileScreen() {
             loading={busy === 'upload'}
           />
         ) : null}
-        <Text style={Font.tiny}>PDF oder Foto, max. 10 MB. Nur für die Prüfung sichtbar, verschlüsselt gespeichert.</Text>
+        <Text style={Font.tiny}>PDF oder Foto, max. 10 MB. Nur das SwapUni-Team sieht das Dokument; es wird nach der Prüfung gelöscht.</Text>
       </Card>
 
       <Card>

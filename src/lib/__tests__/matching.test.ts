@@ -21,12 +21,20 @@ function offer(currentUniversityId: string, targetUniversityIds: string[], extra
     placeType: 'full',
     lawsuitPlace: false,
     provisionalEnrollment: false,
+    physikumPassed: false,
     admissionConfirmed: true,
     desiredTerm: TERM,
     ringSwap: true,
     createdAt: NOW.toISOString(),
     updatedAt: NOW.toISOString(),
-    profile: { id: userId, username: `u${seq}`, firstName: 'Test', lastInitial: 'T', verified: false },
+    profile: {
+      id: userId,
+      username: `u${seq}`,
+      firstName: 'Test',
+      lastInitial: 'T',
+      verified: false,
+      verificationStatus: 'none',
+    },
     ...extra,
   };
 }
@@ -116,6 +124,20 @@ describe('evaluateSwap', () => {
 
     const hamburg = evaluateSwap([offer('mainz', ['hamburg']), offer('hamburg', ['mainz'])], unis, NOW);
     expect(hamburg.find((c) => c.status === 'fail')?.detail).toContain('nur noch bis WiSe 2026/27');
+  });
+
+  it('warns when the Physikum is missing for a clinical swap', () => {
+    const fifth = { semester: 4 };
+    const checks = evaluateSwap([offer('mainz', ['freiburg'], fifth), offer('freiburg', ['mainz'], fifth)], unis, NOW);
+    expect(checks.find((c) => c.label === 'Physikum noch nicht bestanden')?.status).toBe('warn');
+    const passed = { semester: 4, physikumPassed: true };
+    const ok = evaluateSwap([offer('mainz', ['freiburg'], passed), offer('freiburg', ['mainz'], passed)], unis, NOW);
+    expect(ok.some((c) => c.label === 'Physikum noch nicht bestanden')).toBe(false);
+  });
+
+  it('allows swaps at TU München only from the clinical part', () => {
+    const checks = evaluateSwap([offer('mainz', ['muenchen-tum']), offer('muenchen-tum', ['mainz'])], unis, NOW);
+    expect(checks.find((c) => c.status === 'fail')?.detail).toContain('TU München: Tausch erst ab dem 5. Semester');
   });
 
   it('does not swap provisional against final places', () => {

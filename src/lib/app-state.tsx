@@ -99,6 +99,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     refresh()
       .catch(() => undefined)
       .finally(() => !cancelled && setLoaded(true));
+    backend.touchActivity().catch(() => undefined);
     const unsubscribe = backend.subscribeMessages(() => {
       refreshConversations().catch(() => undefined);
     });

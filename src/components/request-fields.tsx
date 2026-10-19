@@ -15,6 +15,10 @@ export const PROGRAMS: { value: Program; label: string }[] = [
 
 export const programLabel = (program: Program) => PROGRAMS.find((p) => p.value === program)?.label ?? program;
 
+/** Programs offered right now. Zahnmedizin follows once its swap rules are collected. */
+export const ENABLED_PROGRAMS = PROGRAMS.filter((p) => p.value === 'humanmedizin');
+
+/** Number of wish universities. The database accepts up to 10, so raising this needs no migration. */
 export const MAX_WISHES = 3;
 export const MAX_SEMESTER = 12;
 
@@ -134,6 +138,39 @@ export function SemesterStepper({ value, onChange }: { value: number; onChange: 
   );
 }
 
+/**
+ * Shows which of the chosen universities accept a swap before the start of studies, so
+ * students see right away where it is not possible.
+ */
+export function PreStartNotice({ universities }: { universities: (University | undefined)[] }) {
+  const unis = universities.filter((u): u is University => !!u);
+  if (!unis.length) return null;
+  const notPossible = unis.filter((u) => !u.swapPossible || (u.minSemester != null && u.minSemester > 0));
+  const unknown = unis.filter((u) => u.swapPossible && u.minSemester == null);
+  const tone = notPossible.length ? styles.noticeWarn : styles.noticeOk;
+  return (
+    <View style={[styles.notice, tone]}>
+      <Icon
+        name={notPossible.length ? 'alert-circle' : 'checkmark-circle'}
+        size={18}
+        color={notPossible.length ? Colors.warning : Colors.success}
+      />
+      <View style={styles.noticeText}>
+        {notPossible.length ? (
+          <Text style={Font.small}>
+            Vor Studienbeginn kein Tausch möglich: {notPossible.map((u) => u.name).join(', ')}.
+          </Text>
+        ) : (
+          <Text style={Font.small}>Alle gewählten Unis erlauben einen Tausch vor Studienbeginn.</Text>
+        )}
+        {unknown.length ? (
+          <Text style={Font.small}>Regel unbekannt, bitte nachfragen: {unknown.map((u) => u.name).join(', ')}.</Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 /** Adds or removes a wish while keeping the priority order. */
 export function toggleWish(wishes: string[], id: string): string[] {
   if (wishes.includes(id)) return wishes.filter((w) => w !== id);
@@ -178,4 +215,8 @@ const styles = StyleSheet.create({
   },
   stepValue: { fontSize: 17, fontWeight: '600', color: Colors.text },
   disabled: { opacity: 0.4 },
+  notice: { flexDirection: 'row', gap: Spacing.sm, padding: Spacing.md, borderRadius: Radius.md },
+  noticeWarn: { backgroundColor: Colors.warningSoft },
+  noticeOk: { backgroundColor: Colors.successSoft },
+  noticeText: { flex: 1, gap: 4 },
 });

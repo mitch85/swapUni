@@ -103,6 +103,7 @@ export default function RegisterScreen() {
         onChangeText={set('email')}
         error={errors.email}
       />
+      <Text style={styles.hint}>Am besten deine Uni-E-Mail-Adresse – das macht dein Profil vertrauenswürdiger.</Text>
       <TextField placeholder="Passwort" icon="lock-closed-outline" secure autoComplete="new-password" value={form.password} onChangeText={set('password')} error={errors.password} />
       <TextField placeholder="Passwort bestätigen" icon="lock-closed-outline" secure autoComplete="new-password" value={form.confirm} onChangeText={set('confirm')} error={errors.confirm} />
       <Pressable
@@ -141,5 +142,6 @@ const styles = StyleSheet.create({
   link: { color: Colors.primary, fontWeight: '600', fontSize: 14 },
   checkRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'center' },
   checkText: { flex: 1, fontSize: 14, color: Colors.textSecondary },
+  hint: { fontSize: 12, color: Colors.textSecondary, marginTop: -Spacing.sm },
   footer: { textAlign: 'center', color: Colors.textSecondary, fontSize: 14 },
 });

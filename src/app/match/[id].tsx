@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { confirmAction } from '@/components/confirm';
-import { CompatibilityBadge, displayName } from '@/components/match-card';
+import { CompatibilityBadge, displayName, VerificationBadge } from '@/components/match-card';
 import { programLabel } from '@/components/request-fields';
 import { Avatar, Badge, Button, Card, EmptyState, ErrorText, Icon, InfoRow, Screen, TextField } from '@/components/ui';
 import { Colors, Font, Spacing } from '@/constants/theme';
@@ -237,11 +237,7 @@ function PartnerCard({ offer }: { offer: Offer }) {
         <View style={styles.flex}>
           <Text style={Font.heading}>{displayName(offer.profile)}</Text>
           <Text style={Font.small}>@{offer.profile.username}</Text>
-          {offer.profile.verified ? (
-            <Badge tone="success" icon="checkmark-circle" label="Verifiziert" />
-          ) : (
-            <Badge tone="neutral" label="Nicht verifiziert" />
-          )}
+          <VerificationBadge profile={offer.profile} />
         </View>
       </View>
       <View>

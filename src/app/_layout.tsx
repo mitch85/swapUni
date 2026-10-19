@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { BlockedScreen } from '@/components/blocked';
 import { ConfirmHost } from '@/components/confirm';
 import { Splash } from '@/components/splash';
 import { Colors } from '@/constants/theme';
@@ -15,7 +16,7 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 const MIN_SPLASH_MS = 1200;
 
 function RootNavigator() {
-  const { session, loaded, myRequest } = useApp();
+  const { session, loaded, myRequest, profile } = useApp();
   const [minTimePassed, setMinTimePassed] = useState(false);
   const signedIn = !!session;
 
@@ -32,6 +33,15 @@ function RootNavigator() {
       <>
         <StatusBar style="light" />
         <Splash />
+      </>
+    );
+  }
+
+  if (profile?.blocked) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <BlockedScreen />
       </>
     );
   }

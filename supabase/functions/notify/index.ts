@@ -1,46 +1,13 @@
 // Sends Expo push notifications. Triggered by two Database Webhooks (see README):
 //   * INSERT on public.messages        -> notify the other chat participants
 //   * INSERT/UPDATE on public.swap_requests -> notify users whose request now matches
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { admin as supabase, authorizedWebhook, sendPush as send } from '../_shared/push.ts';
 
 interface WebhookPayload {
   type: 'INSERT' | 'UPDATE' | 'DELETE';
   table: string;
   record: Record<string, unknown> | null;
   old_record: Record<string, unknown> | null;
-}
-
-const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
-const WEBHOOK_SECRET = Deno.env.get('NOTIFY_WEBHOOK_SECRET');
-
-async function tokensFor(userIds: string[]): Promise<string[]> {
-  if (!userIds.length) return [];
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id')
-    .in('id', userIds)
-    .eq('push_enabled', true);
-  const enabled = (profiles ?? []).map((p) => p.id);
-  if (!enabled.length) return [];
-  const { data } = await supabase.from('push_tokens').select('token').in('user_id', enabled);
-  return (data ?? []).map((t) => t.token);
-}
-
-async function send(userIds: string[], title: string, body: string, data: Record<string, unknown>) {
-  const tokens = await tokensFor(userIds);
-  if (!tokens.length) return 0;
-  const messages = tokens.map((to) => ({ to, title, body, data, sound: 'default' }));
-  const response = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(messages),
-  });
-  const result = await response.json();
-  // Remove tokens of uninstalled apps.
-  const tickets: { status: string; details?: { error?: string } }[] = result.data ?? [];
-  const stale = tokens.filter((_, i) => tickets[i]?.details?.error === 'DeviceNotRegistered');
-  if (stale.length) await supabase.from('push_tokens').delete().in('token', stale);
-  return tokens.length;
 }
 
 async function onMessage(record: Record<string, unknown>) {
@@ -86,7 +53,7 @@ async function onRequest(payload: WebhookPayload) {
 }
 
 Deno.serve(async (req) => {
-  if (WEBHOOK_SECRET && req.headers.get('x-webhook-secret') !== WEBHOOK_SECRET) {
+  if (!authorizedWebhook(req)) {
     return new Response('unauthorized', { status: 401 });
   }
   const payload = (await req.json()) as WebhookPayload;

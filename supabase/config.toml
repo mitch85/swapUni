@@ -18,3 +18,12 @@ enable_confirmations = true
 
 [functions.notify]
 verify_jwt = false
+
+[functions.maintenance]
+verify_jwt = false
+
+[functions.verification-cleanup]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = true

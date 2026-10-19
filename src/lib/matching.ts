@@ -1,6 +1,9 @@
 import { parseTerm, semesterAtSwap, semesterLabel, termsBetween } from './terms';
 import type { Offer, SwapRequest, University } from './types';
 
+/** First clinical semester (after the Physikum). */
+export const FIRST_CLINICAL_SEMESTER = 5;
+
 export type CheckStatus = 'ok' | 'warn' | 'fail';
 export type Compatibility = 'compatible' | 'partial' | 'incompatible';
 
@@ -103,6 +106,14 @@ export function evaluateSwap(cycle: SwapRequest[], unis: UniMap, now: Date): Com
           detail: 'Die Universitäten verlangen beim Tausch das gleiche Fachsemester.',
         },
   );
+
+  if (semesters.some((sem) => sem >= FIRST_CLINICAL_SEMESTER) && cycle.some((r) => !r.physikumPassed)) {
+    checks.push({
+      label: 'Physikum noch nicht bestanden',
+      status: 'warn',
+      detail: 'Für einen Tausch ins klinische Semester muss das Physikum bis zum Wechsel bestanden sein.',
+    });
+  }
 
   const samePlaceType = cycle.every((r) => r.placeType === cycle[0].placeType);
   checks.push({
